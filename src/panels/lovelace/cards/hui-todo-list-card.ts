@@ -129,6 +129,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     return undefined;
   }
 
+  // TODO: Use this function to sort items based on the selected sort mode
   private _sortItems(items: TodoItem[], sort?: string) {
     if (sort === TodoSortMode.ALPHA_ASC || sort === TodoSortMode.ALPHA_DESC) {
       const sortOrder = sort === TodoSortMode.ALPHA_ASC ? 1 : -1;
@@ -410,9 +411,14 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   private _renderMenu(config: TodoListCardConfig, unavailable: boolean) {
-    return (!config.display_order ||
-      config.display_order === TodoSortMode.NONE) &&
-      this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM)
+    // template for the 3 dot menu on the top right of todo list
+    // TODO: add soting options here
+    const render =
+      (!config.display_order || // TODO: check confilcts between manual sorting and other sorting options
+        config.display_order === TodoSortMode.NONE ||
+        config.display_order === TodoSortMode.ALPHA_ASC) &&
+      this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM);
+    return render
       ? html`<ha-button-menu
           @closed=${stopPropagation}
           fixed
@@ -435,9 +441,15 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
             >
             </ha-svg-icon>
           </ha-list-item>
+          <ha-list-item graphic="icon">
+            ${this.hass!.localize(
+              "ui.panel.lovelace.cards.todo-list.sort_alph_asc"
+            )}
+            <ha-svg-icon slot="graphic" .path=${mdiSort}></ha-svg-icon>
+          </ha-list-item>
         </ha-button-menu>`
       : nothing;
-  }
+  } // TODO: Add more sorting option here
 
   private _getDueDate(item: TodoItem): Date | undefined {
     return item.due
@@ -700,12 +712,25 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     }
   }
 
+  // TODO: add another case for sorting options
   private _handlePrimaryMenuAction(ev: CustomEvent<ActionDetail>) {
     switch (ev.detail.index) {
       case 0:
         this._toggleReorder();
         break;
+      case 1:
+        this._toggleSorting("alpha_asc");
+        // TODO: make this dynamic
+        // Future sorting options here
+        // ? call _sortItems with the selected sorting option
+        // or set _config.display_order and let the memoized functions handle it
+        break;
     }
+  }
+
+  private _toggleSorting(sortMode: string) {
+    // TODO: check the value of config and do error handling if conflicts
+    this._config.display_order = sortMode;
   }
 
   private _toggleReorder() {

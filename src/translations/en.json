@@ -6823,6 +6823,7 @@
             "today": "Today",
             "reorder_items": "Reorder items",
             "exit_reorder_items": "Exit reorder mode",
+            "sort_alph_asc": "Sort A-Z",
             "drag_and_drop": "Drag and drop",
             "delete_item": "Delete item",
             "delete_confirm_title": "Remove completed items?",
