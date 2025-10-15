@@ -453,13 +453,9 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         items,
         (item) => item.uid,
         (item) => {
-          const showDelete =
-            this._todoListSupportsFeature(
-              TodoListEntityFeature.DELETE_TODO_ITEM
-            ) &&
-            !this._todoListSupportsFeature(
-              TodoListEntityFeature.UPDATE_TODO_ITEM
-            );
+          const showDelete = this._todoListSupportsFeature(
+            TodoListEntityFeature.DELETE_TODO_ITEM
+          );
           const showReorder =
             item.status !== TodoItemStatus.Completed && this._reordering;
           const due = this._getDueDate(item);
@@ -686,12 +682,31 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     }
   }
 
-  private _deleteItem(ev): void {
-    const item = this._getItem(ev.target.itemId);
-    if (!item) {
-      return;
+  // private _deleteItem(ev): void {
+  //   const item = this._getItem(ev.target.itemId);
+  //   if (!item) {
+  //     return;
+  //   }
+  //   deleteItems(this.hass!, this._entityId!, [item.uid]);
+  // }
+  private async _deleteItem(ev): Promise<void> {
+    ev.stopPropagation();
+
+    const uid = (ev.target as any).itemId as string;
+    const item = this._getItem(uid);
+    if (!item) return;
+
+    const prev = this._items ?? [];
+    this._items = prev.filter((i) => i.uid !== uid);
+    this.requestUpdate();
+
+    try {
+      await deleteItems(this.hass!, this._entityId!, [uid]);
+    } catch (err) {
+      this._items = prev;
+      this.requestUpdate();
+      alert(this.hass?.localize("ui.common.error") ?? String(err));
     }
-    deleteItems(this.hass!, this._entityId!, [item.uid]);
   }
 
   private _addKeyPress(ev): void {
