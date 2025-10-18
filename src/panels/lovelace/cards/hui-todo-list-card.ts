@@ -8,6 +8,10 @@ import {
   mdiDrag,
   mdiPlus,
   mdiSort,
+  mdiSortAlphabeticalAscending,
+	mdiSortAlphabeticalDescending,
+	mdiSortCalendarAscending,
+	mdiSortCalendarDescending
 } from "@mdi/js";
 import { endOfDay, isSameDay } from "date-fns";
 import type { UnsubscribeFunc } from "home-assistant-js-websocket";
@@ -411,12 +415,11 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   private _renderMenu(config: TodoListCardConfig, unavailable: boolean) {
-    // template for the 3 dot menu on the top right of todo list
-    // TODO: add soting options here
+    // Note: template for the 3 dot menu on the top right of todo list
+    // TODO: check conflicts between manual sorting and other sorting options
     const render =
-      (!config.display_order || // TODO: check confilcts between manual sorting and other sorting options
-        config.display_order === TodoSortMode.NONE ||
-        config.display_order === TodoSortMode.ALPHA_ASC) &&
+      (!config.display_order || 
+        this._todoListSupportsSorting(config.display_order)) &&
       this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM);
     return render
       ? html`<ha-button-menu
@@ -445,11 +448,29 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
             ${this.hass!.localize(
               "ui.panel.lovelace.cards.todo-list.sort_alph_asc"
             )}
-            <ha-svg-icon slot="graphic" .path=${mdiSort}></ha-svg-icon>
+            <ha-svg-icon slot="graphic" .path=${mdiSortAlphabeticalAscending}></ha-svg-icon>
+          </ha-list-item>
+          <ha-list-item graphic="icon">
+            ${this.hass!.localize(
+              "ui.panel.lovelace.cards.todo-list.sort_alph_dsc"
+            )}
+            <ha-svg-icon slot="graphic" .path=${mdiSortAlphabeticalDescending}></ha-svg-icon>
+          </ha-list-item>
+          <ha-list-item graphic="icon">
+            ${this.hass!.localize(
+              "ui.panel.lovelace.cards.todo-list.sort_date_asc"
+            )}
+            <ha-svg-icon slot="graphic" .path=${mdiSortCalendarAscending}></ha-svg-icon>
+          </ha-list-item>
+          <ha-list-item graphic="icon">
+            ${this.hass!.localize(
+              "ui.panel.lovelace.cards.todo-list.sort_date_dsc"
+            )}
+            <ha-svg-icon slot="graphic" .path=${mdiSortCalendarDescending}></ha-svg-icon>
           </ha-list-item>
         </ha-button-menu>`
       : nothing;
-  } // TODO: Add more sorting option here
+  }
 
   private _getDueDate(item: TodoItem): Date | undefined {
     return item.due
@@ -558,6 +579,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   private _todoListSupportsFeature(feature: number): boolean {
     const entityStateObj = this.hass!.states[this._entityId!];
     return entityStateObj && supportsFeature(entityStateObj, feature);
+  }
+
+  private _todoListSupportsSorting(sort: TodoSortMode): boolean {
+    return sort === TodoSortMode.NONE || sort === TodoSortMode.ALPHA_ASC || sort === TodoSortMode.ALPHA_DESC || sort === TodoSortMode.DUEDATE_ASC || sort === TodoSortMode.DUEDATE_DESC;
   }
 
   private async _subscribeItems(): Promise<void> {
@@ -714,23 +739,35 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   // TODO: add another case for sorting options
   private _handlePrimaryMenuAction(ev: CustomEvent<ActionDetail>) {
+    // ev.stopPropagation();
     switch (ev.detail.index) {
       case 0:
         this._toggleReorder();
         break;
       case 1:
         this._toggleSorting("alpha_asc");
-        // TODO: make this dynamic
-        // Future sorting options here
-        // ? call _sortItems with the selected sorting option
-        // or set _config.display_order and let the memoized functions handle it
+        break;
+      case 2:
+        this._toggleSorting("alpha_dsc");
+        break;
+      case 3:
+        this._toggleSorting("date_asc");
+        break;
+      case 4:
+        this._toggleSorting("date_dsc");
         break;
     }
   }
 
   private _toggleSorting(sortMode: string) {
-    // TODO: check the value of config and do error handling if conflicts
+    if (this._reordering) {
+      this._reordering = false;
+    }
+    if (!this._config) {
+      return;
+    }
     this._config.display_order = sortMode;
+    // TODO: does this function need to call an "site update" or something?
   }
 
   private _toggleReorder() {
@@ -740,6 +777,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   private async _itemMoved(ev: CustomEvent) {
     ev.stopPropagation();
     const { oldIndex, newIndex } = ev.detail;
+
+    if (this._config) {
+      this._config.display_order = TodoSortMode.NONE;
+    }
     this._moveItem(oldIndex, newIndex);
   }
 
