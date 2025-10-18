@@ -9,9 +9,9 @@ import {
   mdiPlus,
   mdiSort,
   mdiSortAlphabeticalAscending,
-	mdiSortAlphabeticalDescending,
-	mdiSortCalendarAscending,
-	mdiSortCalendarDescending
+  mdiSortAlphabeticalDescending,
+  mdiSortCalendarAscending,
+  mdiSortCalendarDescending,
 } from "@mdi/js";
 import { endOfDay, isSameDay } from "date-fns";
 import type { UnsubscribeFunc } from "home-assistant-js-websocket";
@@ -418,7 +418,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     // Note: template for the 3 dot menu on the top right of todo list
     // TODO: check conflicts between manual sorting and other sorting options
     const render =
-      (!config.display_order || 
+      (!config.display_order ||
         this._todoListSupportsSorting(config.display_order)) &&
       this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM);
     return render
@@ -448,25 +448,37 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
             ${this.hass!.localize(
               "ui.panel.lovelace.cards.todo-list.sort_alph_asc"
             )}
-            <ha-svg-icon slot="graphic" .path=${mdiSortAlphabeticalAscending}></ha-svg-icon>
+            <ha-svg-icon
+              slot="graphic"
+              .path=${mdiSortAlphabeticalAscending}
+            ></ha-svg-icon>
           </ha-list-item>
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
               "ui.panel.lovelace.cards.todo-list.sort_alph_dsc"
             )}
-            <ha-svg-icon slot="graphic" .path=${mdiSortAlphabeticalDescending}></ha-svg-icon>
+            <ha-svg-icon
+              slot="graphic"
+              .path=${mdiSortAlphabeticalDescending}
+            ></ha-svg-icon>
           </ha-list-item>
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
               "ui.panel.lovelace.cards.todo-list.sort_date_asc"
             )}
-            <ha-svg-icon slot="graphic" .path=${mdiSortCalendarAscending}></ha-svg-icon>
+            <ha-svg-icon
+              slot="graphic"
+              .path=${mdiSortCalendarAscending}
+            ></ha-svg-icon>
           </ha-list-item>
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
               "ui.panel.lovelace.cards.todo-list.sort_date_dsc"
             )}
-            <ha-svg-icon slot="graphic" .path=${mdiSortCalendarDescending}></ha-svg-icon>
+            <ha-svg-icon
+              slot="graphic"
+              .path=${mdiSortCalendarDescending}
+            ></ha-svg-icon>
           </ha-list-item>
         </ha-button-menu>`
       : nothing;
@@ -582,7 +594,13 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   private _todoListSupportsSorting(sort: TodoSortMode): boolean {
-    return sort === TodoSortMode.NONE || sort === TodoSortMode.ALPHA_ASC || sort === TodoSortMode.ALPHA_DESC || sort === TodoSortMode.DUEDATE_ASC || sort === TodoSortMode.DUEDATE_DESC;
+    return (
+      sort === TodoSortMode.NONE ||
+      sort === TodoSortMode.ALPHA_ASC ||
+      sort === TodoSortMode.ALPHA_DESC ||
+      sort === TodoSortMode.DUEDATE_ASC ||
+      sort === TodoSortMode.DUEDATE_DESC
+    );
   }
 
   private async _subscribeItems(): Promise<void> {
