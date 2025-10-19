@@ -127,6 +127,25 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
     this._config = config;
     this._entityId = config.entity;
+
+    // Attempt to restore a previously selected sort for this entity from
+    // memory or localStorage so the choice persists across page reloads.
+    try {
+      let savedSort = this._perListSort.get(this._entityId!);
+      if (savedSort === undefined) {
+        const raw = localStorage.getItem(`todo-sort:${this._entityId}`);
+        if (raw) {
+          savedSort = raw as unknown as TodoSortMode;
+          this._perListSort.set(this._entityId!, savedSort);
+        }
+      }
+
+      if (savedSort !== undefined) {
+        this._config = { ...this._config, display_order: savedSort };
+      }
+    } catch {
+      // ignore localStorage errors (e.g. not available)
+    }
   }
 
   protected checkConfig(config: TodoListCardConfig): void {
@@ -224,18 +243,36 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       }
       this._subscribeItems();
     } else if (changedProperties.has("_entityId") || !this._items) {
-      // If the entity (list) changed, restore any saved sort mode for it.
       const oldEntity = changedProperties.get("_entityId") as
         | string
         | undefined;
-      // Save the old entity's sort (if any)
       if (oldEntity && this._config?.display_order !== undefined) {
         this._perListSort.set(oldEntity, this._config.display_order);
+        try {
+          localStorage.setItem(
+            `todo-sort:${oldEntity}`,
+            String(this._config.display_order)
+          );
+        } catch {
+          // localStorage may be unavailable in some environments; ignore.
+        }
       }
 
       // Restore the saved sort for the new entity if present
       if (this._entityId) {
-        const savedSort = this._perListSort.get(this._entityId);
+        let savedSort = this._perListSort.get(this._entityId);
+        if (savedSort === undefined) {
+          try {
+            const raw = localStorage.getItem(`todo-sort:${this._entityId}`);
+            if (raw) {
+              savedSort = raw as unknown as TodoSortMode;
+              this._perListSort.set(this._entityId, savedSort);
+            }
+          } catch {
+            // ignore localStorage errors
+          }
+        }
+
         if (savedSort !== undefined && this._config) {
           // Create a shallow copy of config to ensure Lit notices the change
           this._config = { ...this._config, display_order: savedSort };
@@ -816,6 +853,11 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     // Save sort mode per-entity so it persists when switching lists
     if (this._entityId) {
       this._perListSort.set(this._entityId, sortMode);
+      try {
+        localStorage.setItem(`todo-sort:${this._entityId}`, String(sortMode));
+      } catch {
+        // ignore localStorage errors
+      }
     }
 
     // Update config immutably so Lit detects a property change and re-renders
