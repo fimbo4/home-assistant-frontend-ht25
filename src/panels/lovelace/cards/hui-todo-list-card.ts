@@ -96,6 +96,13 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   @state() private _reordering = false;
 
+  // Keep track of the selected sort mode per list/entity so switching
+  // between lists restores the previously selected sort for that list.
+  private _perListSort: Map<string, TodoSortMode | undefined> = new Map<
+    string,
+    TodoSortMode | undefined
+  >();
+
   private _unsubItems?: Promise<UnsubscribeFunc>;
 
   connectedCallback(): void {
@@ -135,6 +142,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   // TODO: Use this function to sort items based on the selected sort mode
   private _sortItems(items: TodoItem[], sort?: string) {
+    // console.log("Sorting items with mode ", sort);
     if (sort === TodoSortMode.ALPHA_ASC || sort === TodoSortMode.ALPHA_DESC) {
       const sortOrder = sort === TodoSortMode.ALPHA_ASC ? 1 : -1;
       return items.sort(
@@ -216,6 +224,24 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       }
       this._subscribeItems();
     } else if (changedProperties.has("_entityId") || !this._items) {
+      // If the entity (list) changed, restore any saved sort mode for it.
+      const oldEntity = changedProperties.get("_entityId") as
+        | string
+        | undefined;
+      // Save the old entity's sort (if any)
+      if (oldEntity && this._config?.display_order !== undefined) {
+        this._perListSort.set(oldEntity, this._config.display_order);
+      }
+
+      // Restore the saved sort for the new entity if present
+      if (this._entityId) {
+        const savedSort = this._perListSort.get(this._entityId);
+        if (savedSort !== undefined && this._config) {
+          // Create a shallow copy of config to ensure Lit notices the change
+          this._config = { ...this._config, display_order: savedSort };
+        }
+      }
+
       this._items = undefined;
       this._subscribeItems();
     }
@@ -244,6 +270,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     if (!this._config || !this.hass || !this._entityId) {
       return nothing;
     }
+    // console.log("render: ", this._config.display_order);
 
     const stateObj = this.hass.states[this._entityId];
 
@@ -421,6 +448,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       (!config.display_order ||
         this._todoListSupportsSorting(config.display_order)) &&
       this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM);
+    // console.log(render);
     return render
       ? html`<ha-button-menu
           @closed=${stopPropagation}
@@ -763,29 +791,40 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         this._toggleReorder();
         break;
       case 1:
-        this._toggleSorting("alpha_asc");
+        this._toggleSorting(TodoSortMode.ALPHA_ASC);
         break;
       case 2:
-        this._toggleSorting("alpha_dsc");
+        this._toggleSorting(TodoSortMode.ALPHA_DESC);
         break;
       case 3:
-        this._toggleSorting("date_asc");
+        this._toggleSorting(TodoSortMode.DUEDATE_ASC);
         break;
       case 4:
-        this._toggleSorting("date_dsc");
+        this._toggleSorting(TodoSortMode.DUEDATE_DESC);
         break;
     }
   }
 
-  private _toggleSorting(sortMode: string) {
+  private _toggleSorting(sortMode: TodoSortMode) {
     if (this._reordering) {
       this._reordering = false;
     }
     if (!this._config) {
       return;
     }
-    this._config.display_order = sortMode;
-    // TODO: does this function need to call an "site update" or something?
+    // console.log("Setting sort mode to ", sortMode);
+    // Save sort mode per-entity so it persists when switching lists
+    if (this._entityId) {
+      this._perListSort.set(this._entityId, sortMode);
+    }
+
+    // Update config immutably so Lit detects a property change and re-renders
+    this._config = { ...this._config, display_order: sortMode };
+
+    // Ensure items are resorted immediately by forcing an update cycle.
+    // The memoized getters depend on the sort param, so re-render will call them
+    // with the new value from this._config.display_order.
+    this.requestUpdate();
   }
 
   private _toggleReorder() {
