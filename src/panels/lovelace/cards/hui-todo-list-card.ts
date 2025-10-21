@@ -96,6 +96,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   @state() private _reordering = false;
 
+  @state() private _alph_ascending = false;
+
+  @state() private _date_ascending = false;
+
   // Keep track of the selected sort mode per list/entity so switching
   // between lists restores the previously selected sort for that list.
   private _perListSort: Map<string, TodoSortMode | undefined> = new Map<
@@ -511,38 +515,28 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
           </ha-list-item>
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
-              "ui.panel.lovelace.cards.todo-list.sort_alph_asc"
+              this._alph_ascending
+                ? "ui.panel.lovelace.cards.todo-list.sort_alph_asc"
+                : "ui.panel.lovelace.cards.todo-list.sort_alph_dsc"
             )}
             <ha-svg-icon
               slot="graphic"
-              .path=${mdiSortAlphabeticalAscending}
+              .path=${this._alph_ascending
+                ? mdiSortAlphabeticalAscending
+                : mdiSortAlphabeticalDescending}
             ></ha-svg-icon>
           </ha-list-item>
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
-              "ui.panel.lovelace.cards.todo-list.sort_alph_dsc"
+              this._date_ascending
+                ? "ui.panel.lovelace.cards.todo-list.sort_date_asc"
+                : "ui.panel.lovelace.cards.todo-list.sort_date_dsc"
             )}
             <ha-svg-icon
               slot="graphic"
-              .path=${mdiSortAlphabeticalDescending}
-            ></ha-svg-icon>
-          </ha-list-item>
-          <ha-list-item graphic="icon">
-            ${this.hass!.localize(
-              "ui.panel.lovelace.cards.todo-list.sort_date_asc"
-            )}
-            <ha-svg-icon
-              slot="graphic"
-              .path=${mdiSortCalendarAscending}
-            ></ha-svg-icon>
-          </ha-list-item>
-          <ha-list-item graphic="icon">
-            ${this.hass!.localize(
-              "ui.panel.lovelace.cards.todo-list.sort_date_dsc"
-            )}
-            <ha-svg-icon
-              slot="graphic"
-              .path=${mdiSortCalendarDescending}
+              .path=${this._date_ascending
+                ? mdiSortCalendarAscending
+                : mdiSortCalendarDescending}
             ></ha-svg-icon>
           </ha-list-item>
         </ha-button-menu>`
@@ -828,22 +822,30 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         this._toggleReorder();
         break;
       case 1:
-        this._toggleSorting(TodoSortMode.ALPHA_ASC);
+        // TODO: We can create a method called _toggle_alph_ascending() that does the same as _toggleReorder()
+        this._alph_ascending = !this._alph_ascending;
+        this._toggleSorting(
+          this._alph_ascending
+            ? TodoSortMode.ALPHA_ASC
+            : TodoSortMode.ALPHA_DESC
+        );
         break;
       case 2:
-        this._toggleSorting(TodoSortMode.ALPHA_DESC);
-        break;
-      case 3:
-        this._toggleSorting(TodoSortMode.DUEDATE_ASC);
-        break;
-      case 4:
-        this._toggleSorting(TodoSortMode.DUEDATE_DESC);
+        // TODO: We can create a method called _toggle_date_ascending() that does the same as _toggleReorder()
+        this._date_ascending = !this._date_ascending;
+        this._toggleSorting(
+          this._date_ascending
+            ? TodoSortMode.DUEDATE_ASC
+            : TodoSortMode.DUEDATE_DESC
+        );
         break;
     }
   }
 
   private _toggleSorting(sortMode: TodoSortMode) {
     if (this._reordering) {
+      // TODO: Two options if with the reordering only works then we leave it like this. If not
+      // we can do like the toggleReorder method with each one
       this._reordering = false;
     }
     if (!this._config) {
