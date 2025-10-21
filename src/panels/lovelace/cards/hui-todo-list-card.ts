@@ -100,8 +100,6 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   @state() private _date_ascending = false;
 
-  // Keep track of the selected sort mode per list/entity so switching
-  // between lists restores the previously selected sort for that list.
   private _perListSort: Map<string, TodoSortMode | undefined> = new Map<
     string,
     TodoSortMode | undefined
@@ -132,8 +130,6 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     this._config = config;
     this._entityId = config.entity;
 
-    // Attempt to restore a previously selected sort for this entity from
-    // memory or localStorage so the choice persists across page reloads.
     try {
       let savedSort = this._perListSort.get(this._entityId!);
       if (savedSort === undefined) {
@@ -159,13 +155,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   protected getEntityId(): string | undefined {
-    // not implemented, todo list should always have an entity id set;
     return undefined;
   }
 
-  // TODO: Use this function to sort items based on the selected sort mode
   private _sortItems(items: TodoItem[], sort?: string) {
-    // console.log("Sorting items with mode ", sort);
     if (sort === TodoSortMode.ALPHA_ASC || sort === TodoSortMode.ALPHA_DESC) {
       const sortOrder = sort === TodoSortMode.ALPHA_ASC ? 1 : -1;
       return items.sort(
@@ -262,7 +255,6 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         }
       }
 
-      // Restore the saved sort for the new entity if present
       if (this._entityId) {
         let savedSort = this._perListSort.get(this._entityId);
         if (savedSort === undefined) {
@@ -278,7 +270,6 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         }
 
         if (savedSort !== undefined && this._config) {
-          // Create a shallow copy of config to ensure Lit notices the change
           this._config = { ...this._config, display_order: savedSort };
         }
       }
@@ -311,7 +302,6 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     if (!this._config || !this.hass || !this._entityId) {
       return nothing;
     }
-    // console.log("render: ", this._config.display_order);
 
     const stateObj = this.hass.states[this._entityId];
 
@@ -483,13 +473,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   private _renderMenu(config: TodoListCardConfig, unavailable: boolean) {
-    // Note: template for the 3 dot menu on the top right of todo list
-    // TODO: check conflicts between manual sorting and other sorting options
     const render =
       (!config.display_order ||
         this._todoListSupportsSorting(config.display_order)) &&
       this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM);
-    // console.log(render);
     return render
       ? html`<ha-button-menu
           @closed=${stopPropagation}
@@ -814,16 +801,13 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     }
   }
 
-  // TODO: add another case for sorting options
   private _handlePrimaryMenuAction(ev: CustomEvent<ActionDetail>) {
-    // ev.stopPropagation();
     switch (ev.detail.index) {
       case 0:
         this._toggleReorder();
         break;
       case 1:
-        // TODO: We can create a method called _toggle_alph_ascending() that does the same as _toggleReorder()
-        this._alph_ascending = !this._alph_ascending;
+        this._toggleAlphabetical();
         this._toggleSorting(
           this._alph_ascending
             ? TodoSortMode.ALPHA_ASC
@@ -831,8 +815,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         );
         break;
       case 2:
-        // TODO: We can create a method called _toggle_date_ascending() that does the same as _toggleReorder()
-        this._date_ascending = !this._date_ascending;
+        this._toggleDueDate();
         this._toggleSorting(
           this._date_ascending
             ? TodoSortMode.DUEDATE_ASC
@@ -842,17 +825,26 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     }
   }
 
+  private _toggleReorder() {
+    this._reordering = !this._reordering;
+  }
+
+  private _toggleAlphabetical() {
+    this._alph_ascending = !this._alph_ascending;
+  }
+
+  private _toggleDueDate() {
+    this._date_ascending = !this._date_ascending;
+  }
+
   private _toggleSorting(sortMode: TodoSortMode) {
     if (this._reordering) {
-      // TODO: Two options if with the reordering only works then we leave it like this. If not
-      // we can do like the toggleReorder method with each one
       this._reordering = false;
     }
     if (!this._config) {
       return;
     }
-    // console.log("Setting sort mode to ", sortMode);
-    // Save sort mode per-entity so it persists when switching lists
+
     if (this._entityId) {
       this._perListSort.set(this._entityId, sortMode);
       try {
@@ -862,17 +854,9 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       }
     }
 
-    // Update config immutably so Lit detects a property change and re-renders
     this._config = { ...this._config, display_order: sortMode };
 
-    // Ensure items are resorted immediately by forcing an update cycle.
-    // The memoized getters depend on the sort param, so re-render will call them
-    // with the new value from this._config.display_order.
     this.requestUpdate();
-  }
-
-  private _toggleReorder() {
-    this._reordering = !this._reordering;
   }
 
   private async _itemMoved(ev: CustomEvent) {
