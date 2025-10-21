@@ -516,27 +516,27 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
               this._alph_ascending
-                ? "ui.panel.lovelace.cards.todo-list.sort_alph_asc"
-                : "ui.panel.lovelace.cards.todo-list.sort_alph_dsc"
+                ? "ui.panel.lovelace.cards.todo-list.alpha_desc"
+                : "ui.panel.lovelace.cards.todo-list.alpha_asc"
             )}
             <ha-svg-icon
               slot="graphic"
               .path=${this._alph_ascending
-                ? mdiSortAlphabeticalAscending
-                : mdiSortAlphabeticalDescending}
+                ? mdiSortAlphabeticalDescending
+                : mdiSortAlphabeticalAscending}
             ></ha-svg-icon>
           </ha-list-item>
           <ha-list-item graphic="icon">
             ${this.hass!.localize(
               this._date_ascending
-                ? "ui.panel.lovelace.cards.todo-list.sort_date_asc"
-                : "ui.panel.lovelace.cards.todo-list.sort_date_dsc"
+                ? "ui.panel.lovelace.cards.todo-list.duedate_desc"
+                : "ui.panel.lovelace.cards.todo-list.duedate_asc"
             )}
             <ha-svg-icon
               slot="graphic"
               .path=${this._date_ascending
-                ? mdiSortCalendarAscending
-                : mdiSortCalendarDescending}
+                ? mdiSortCalendarDescending
+                : mdiSortCalendarAscending}
             ></ha-svg-icon>
           </ha-list-item>
         </ha-button-menu>`
