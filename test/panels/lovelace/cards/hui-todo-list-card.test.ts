@@ -1,8 +1,8 @@
-import "../support/static-path";
+import "../../../support/static-path";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { nothing } from "lit";
-import { HuiTodoListCard } from "../../src/panels/lovelace/cards/hui-todo-list-card";
-import { TodoSortMode } from "../../src/data/todo";
+import { HuiTodoListCard } from "../../../../src/panels/lovelace/cards/hui-todo-list-card";
+import { TodoSortMode } from "../../../../src/data/todo";
 
 const mockHass = {
   localize: (key: string) => key,

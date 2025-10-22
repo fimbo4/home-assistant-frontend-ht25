@@ -3,7 +3,15 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [tsconfigPaths()],
+  optimizeDeps: {
+    include: ["lit"],
+  },
   test: {
+    deps: {
+      // Ensure lit is inlined so its internal specifiers (like ./decorators)
+      // are resolved correctly when running under Vitest.
+      inline: ["lit"],
+    },
     environment: "jsdom", // to run in browser-like environment
     env: {
       TZ: "Etc/UTC",
