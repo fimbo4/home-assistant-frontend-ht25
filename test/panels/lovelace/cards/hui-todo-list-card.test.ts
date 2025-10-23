@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe("hui-todo-list-card – inline delete", () => {
-  it("renderar delete-ikon när DELETE_TODO_ITEM stöds", async () => {
+  it("renders delete icon where DELETE TODOITEM is supported", async () => {
     const el = createEl();
     (el as any).hass = makeHass(TodoListEntityFeature.DELETE_TODO_ITEM);
     el.setConfig({ type: "todo-list", entity: "todo.sample" });
@@ -69,7 +69,7 @@ describe("hui-todo-list-card – inline delete", () => {
     expect(el.shadowRoot!.querySelector(".deleteItemButton")).toBeTruthy();
   });
 
-  it("klick på papperskorg triggar inte edit (stopPropagation)", async () => {
+  it("clicking on trash does not trigger edit (stopPropagation)", async () => {
     const el = createEl();
     (el as any).hass = makeHass(TodoListEntityFeature.DELETE_TODO_ITEM);
     el.setConfig({ type: "todo-list", entity: "todo.sample" });
@@ -86,7 +86,7 @@ describe("hui-todo-list-card – inline delete", () => {
     expect(openSpy).not.toHaveBeenCalled();
   });
 
-  it("optimistisk UI och rollback när delete misslyckas", async () => {
+  it("optimistic UI and rollback when delete fails", async () => {
     const el = createEl();
     const hass = makeHass(TodoListEntityFeature.DELETE_TODO_ITEM);
     hass.callService = vi.fn().mockRejectedValue(new Error("boom"));
