@@ -1,4 +1,4 @@
-import "../static/staticpath";
+import "../../../support/static-path";
 import { describe, it, expect } from "vitest";
 import { HuiTodoListCard } from "../../../../src/panels/lovelace/cards/hui-todo-list-card";
 import type { TodoItem } from "../../../../src/data/todo";
