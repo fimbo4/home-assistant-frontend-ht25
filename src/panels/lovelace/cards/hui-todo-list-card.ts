@@ -252,28 +252,45 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
     const unavailable = isUnavailableState(stateObj.state);
 
-    const checkedItems = this._getCheckedItems(
+    let checkedItems = this._getCheckedItems(
       this._items,
       this._config.display_order
     );
-    const uncheckedItems = this._getUncheckedItems(
-      this._items,
-      this._config.display_order
-    );
-
-    const itemsWithoutStatus = this._getItemsWithoutStatus(
+    let uncheckedItems = this._getUncheckedItems(
       this._items,
       this._config.display_order
     );
 
-    const reorderableItems = this._reordering
+    let itemsWithoutStatus = this._getItemsWithoutStatus(
+      this._items,
+      this._config.display_order
+    );
+
+    let reorderableItems = this._reordering
       ? this._getUncheckedAndItemsWithoutStatus(
           this._items,
           this._config.display_order
         )
       : undefined;
 
+    if (this._filter) {
+      checkedItems = this._getFilteredItems(this._filter, checkedItems);
+      uncheckedItems = this._getFilteredItems(this._filter, uncheckedItems);
+      itemsWithoutStatus = this._getFilteredItems(
+        this._filter,
+        itemsWithoutStatus
+      );
+      reorderableItems = this._getFilteredItems(
+        this._filter,
+        reorderableItems ?? []
+      );
+      if (reorderableItems.length === 0) {
+        reorderableItems = undefined;
+      }
+    }
+
     return html`
+      ${this._generateTags(this._items ?? [])} ${this._createTagMenu()}
       <ha-card
         .header=${this._config.title}
         class=${classMap({
@@ -445,6 +462,95 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         ? new Date(item.due)
         : endOfDay(new Date(`${item.due}T00:00:00`))
       : undefined;
+  }
+
+  private tags = new Map<string, any>();
+
+  private _generateTags(items: TodoItem[]) {
+    this.tags.clear();
+    for (const item of items) {
+      const tags = item.description?.match(/#[^\s]+/g) ?? [];
+      this.tags.set(item.uid, tags);
+    }
+  }
+
+  private _getUniqueTags() {
+    const uniqueTags = new Set();
+    this.tags.forEach((tagArray) => {
+      if (tagArray != null) {
+        tagArray.forEach((tag) => {
+          uniqueTags.add(tag);
+        });
+      }
+    });
+    return uniqueTags;
+  }
+
+  private _getUidsFromTag(tag: string) {
+    const uids = new Set();
+    for (const [uid, tagArray] of this.tags.entries()) {
+      if (Array.isArray(tagArray) && tagArray.includes(tag)) {
+        uids.add(uid);
+      }
+    }
+    return uids;
+  }
+
+  private _createTagMenu() {
+    const tags = this._getUniqueTags();
+    return html`
+      <!-- eslint-disable-next-line lit/no-arrow-functions-in-templates -->
+      <ha-select>
+        <ha-list-item @click=${this._clearFilters}>No filter</ha-list-item>
+        ${repeat(
+          tags,
+          (tag) => tag,
+          (tag) => html`
+            <ha-list-item @click=${this._handleTagClick} value=${tag}>
+              ${tag}
+            </ha-list-item>
+          `
+        )}
+      </ha-select>
+    `;
+  }
+
+  private _handleTagClick(e) {
+    const tag = e.currentTarget?.getAttribute("value");
+    if (tag) this._setFilter(tag);
+  }
+
+  private _filter?: string;
+
+  private _setFilter(filter: string | undefined) {
+    this._filter = filter;
+    this._triggerUpdate();
+  }
+
+  private _triggerUpdate() {
+    if (this._items) {
+      const itemsCopy: TodoItem[] | undefined = [];
+      for (const item of this._items) {
+        itemsCopy.push(item);
+      }
+
+      this._items = itemsCopy;
+    }
+  }
+
+  private _getFilteredItems(tag: string, items: TodoItem[]) {
+    const uids = Array.from(this._getUidsFromTag(tag).values());
+    const filteredItems: TodoItem[] = [];
+    for (const item of items) {
+      if (uids.indexOf(item.uid) !== -1) {
+        filteredItems.push(item);
+      }
+    }
+    return filteredItems;
+  }
+
+  private _clearFilters() {
+    this._setFilter(undefined);
   }
 
   private _renderItems(items: TodoItem[], unavailable = false) {
