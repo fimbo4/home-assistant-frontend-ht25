@@ -5,4 +5,5 @@ beforeAll(() => {
   global.navigator = {} as any;
 
   global.__DEMO__ = false;
+  (global as any).__STATIC_PATH__ = "";
 });

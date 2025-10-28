@@ -8,6 +8,10 @@ import {
   mdiDrag,
   mdiPlus,
   mdiSort,
+  mdiSortAlphabeticalAscending,
+  mdiSortAlphabeticalDescending,
+  mdiSortCalendarAscending,
+  mdiSortCalendarDescending,
 } from "@mdi/js";
 import { endOfDay, isSameDay } from "date-fns";
 import type { UnsubscribeFunc } from "home-assistant-js-websocket";
@@ -92,6 +96,15 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   @state() private _reordering = false;
 
+  @state() private _alph_ascending = false;
+
+  @state() private _date_ascending = false;
+
+  private _perListSort: Map<string, TodoSortMode | undefined> = new Map<
+    string,
+    TodoSortMode | undefined
+  >();
+
   private _unsubItems?: Promise<UnsubscribeFunc>;
 
   connectedCallback(): void {
@@ -116,6 +129,23 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
     this._config = config;
     this._entityId = config.entity;
+
+    try {
+      let savedSort = this._perListSort.get(this._entityId!);
+      if (savedSort === undefined) {
+        const raw = localStorage.getItem(`todo-sort:${this._entityId}`);
+        if (raw) {
+          savedSort = raw as unknown as TodoSortMode;
+          this._perListSort.set(this._entityId!, savedSort);
+        }
+      }
+
+      if (savedSort !== undefined) {
+        this._config = { ...this._config, display_order: savedSort };
+      }
+    } catch {
+      // ignore localStorage errors (e.g. not available)
+    }
   }
 
   protected checkConfig(config: TodoListCardConfig): void {
@@ -125,7 +155,6 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   protected getEntityId(): string | undefined {
-    // not implemented, todo list should always have an entity id set;
     return undefined;
   }
 
@@ -211,6 +240,40 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       }
       this._subscribeItems();
     } else if (changedProperties.has("_entityId") || !this._items) {
+      const oldEntity = changedProperties.get("_entityId") as
+        | string
+        | undefined;
+      if (oldEntity && this._config?.display_order !== undefined) {
+        this._perListSort.set(oldEntity, this._config.display_order);
+        try {
+          localStorage.setItem(
+            `todo-sort:${oldEntity}`,
+            String(this._config.display_order)
+          );
+        } catch {
+          // localStorage may be unavailable in some environments; ignore.
+        }
+      }
+
+      if (this._entityId) {
+        let savedSort = this._perListSort.get(this._entityId);
+        if (savedSort === undefined) {
+          try {
+            const raw = localStorage.getItem(`todo-sort:${this._entityId}`);
+            if (raw) {
+              savedSort = raw as unknown as TodoSortMode;
+              this._perListSort.set(this._entityId, savedSort);
+            }
+          } catch {
+            // ignore localStorage errors
+          }
+        }
+
+        if (savedSort !== undefined && this._config) {
+          this._config = { ...this._config, display_order: savedSort };
+        }
+      }
+
       this._items = undefined;
       this._subscribeItems();
     }
@@ -252,28 +315,45 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
     const unavailable = isUnavailableState(stateObj.state);
 
-    const checkedItems = this._getCheckedItems(
+    let checkedItems = this._getCheckedItems(
       this._items,
       this._config.display_order
     );
-    const uncheckedItems = this._getUncheckedItems(
-      this._items,
-      this._config.display_order
-    );
-
-    const itemsWithoutStatus = this._getItemsWithoutStatus(
+    let uncheckedItems = this._getUncheckedItems(
       this._items,
       this._config.display_order
     );
 
-    const reorderableItems = this._reordering
+    let itemsWithoutStatus = this._getItemsWithoutStatus(
+      this._items,
+      this._config.display_order
+    );
+
+    let reorderableItems = this._reordering
       ? this._getUncheckedAndItemsWithoutStatus(
           this._items,
           this._config.display_order
         )
       : undefined;
 
+    if (this._filter) {
+      checkedItems = this._getFilteredItems(this._filter, checkedItems);
+      uncheckedItems = this._getFilteredItems(this._filter, uncheckedItems);
+      itemsWithoutStatus = this._getFilteredItems(
+        this._filter,
+        itemsWithoutStatus
+      );
+      reorderableItems = this._getFilteredItems(
+        this._filter,
+        reorderableItems ?? []
+      );
+      if (reorderableItems.length === 0) {
+        reorderableItems = undefined;
+      }
+    }
+
     return html`
+      ${this._generateTags(this._items ?? [])} ${this._createTagMenu()}
       <ha-card
         .header=${this._config.title}
         class=${classMap({
@@ -410,9 +490,11 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   private _renderMenu(config: TodoListCardConfig, unavailable: boolean) {
-    return (!config.display_order ||
-      config.display_order === TodoSortMode.NONE) &&
-      this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM)
+    const render =
+      (!config.display_order ||
+        this._todoListSupportsSorting(config.display_order)) &&
+      this._todoListSupportsFeature(TodoListEntityFeature.MOVE_TODO_ITEM);
+    return render
       ? html`<ha-button-menu
           @closed=${stopPropagation}
           fixed
@@ -435,6 +517,32 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
             >
             </ha-svg-icon>
           </ha-list-item>
+          <ha-list-item graphic="icon">
+            ${this.hass!.localize(
+              this._alph_ascending
+                ? "ui.panel.lovelace.cards.todo-list.alpha_desc"
+                : "ui.panel.lovelace.cards.todo-list.alpha_asc"
+            )}
+            <ha-svg-icon
+              slot="graphic"
+              .path=${this._alph_ascending
+                ? mdiSortAlphabeticalDescending
+                : mdiSortAlphabeticalAscending}
+            ></ha-svg-icon>
+          </ha-list-item>
+          <ha-list-item graphic="icon">
+            ${this.hass!.localize(
+              this._date_ascending
+                ? "ui.panel.lovelace.cards.todo-list.duedate_desc"
+                : "ui.panel.lovelace.cards.todo-list.duedate_asc"
+            )}
+            <ha-svg-icon
+              slot="graphic"
+              .path=${this._date_ascending
+                ? mdiSortCalendarDescending
+                : mdiSortCalendarAscending}
+            ></ha-svg-icon>
+          </ha-list-item>
         </ha-button-menu>`
       : nothing;
   }
@@ -447,19 +555,104 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       : undefined;
   }
 
+  private tags = new Map<string, any>();
+
+  private _generateTags(items: TodoItem[]) {
+    this.tags.clear();
+    for (const item of items) {
+      const tags = item.description?.match(/#[^\s]+/g) ?? [];
+      this.tags.set(item.uid, tags);
+    }
+  }
+
+  private _getUniqueTags() {
+    const uniqueTags = new Set();
+    this.tags.forEach((tagArray) => {
+      if (tagArray != null) {
+        tagArray.forEach((tag) => {
+          uniqueTags.add(tag);
+        });
+      }
+    });
+    return uniqueTags;
+  }
+
+  private _getUidsFromTag(tag: string) {
+    const uids = new Set();
+    for (const [uid, tagArray] of this.tags.entries()) {
+      if (Array.isArray(tagArray) && tagArray.includes(tag)) {
+        uids.add(uid);
+      }
+    }
+    return uids;
+  }
+
+  private _createTagMenu() {
+    const tags = this._getUniqueTags();
+    return html`
+      <!-- eslint-disable-next-line lit/no-arrow-functions-in-templates -->
+      <ha-select>
+        <ha-list-item @click=${this._clearFilters}>No filter</ha-list-item>
+        ${repeat(
+          tags,
+          (tag) => tag,
+          (tag) => html`
+            <ha-list-item @click=${this._handleTagClick} value=${tag}>
+              ${tag}
+            </ha-list-item>
+          `
+        )}
+      </ha-select>
+    `;
+  }
+
+  private _handleTagClick(e) {
+    const tag = e.currentTarget?.getAttribute("value");
+    if (tag) this._setFilter(tag);
+  }
+
+  private _filter?: string;
+
+  private _setFilter(filter: string | undefined) {
+    this._filter = filter;
+    this._triggerUpdate();
+  }
+
+  private _triggerUpdate() {
+    if (this._items) {
+      const itemsCopy: TodoItem[] | undefined = [];
+      for (const item of this._items) {
+        itemsCopy.push(item);
+      }
+
+      this._items = itemsCopy;
+    }
+  }
+
+  private _getFilteredItems(tag: string, items: TodoItem[]) {
+    const uids = Array.from(this._getUidsFromTag(tag).values());
+    const filteredItems: TodoItem[] = [];
+    for (const item of items) {
+      if (uids.indexOf(item.uid) !== -1) {
+        filteredItems.push(item);
+      }
+    }
+    return filteredItems;
+  }
+
+  private _clearFilters() {
+    this._setFilter(undefined);
+  }
+
   private _renderItems(items: TodoItem[], unavailable = false) {
     return html`
       ${repeat(
         items,
         (item) => item.uid,
         (item) => {
-          const showDelete =
-            this._todoListSupportsFeature(
-              TodoListEntityFeature.DELETE_TODO_ITEM
-            ) &&
-            !this._todoListSupportsFeature(
-              TodoListEntityFeature.UPDATE_TODO_ITEM
-            );
+          const showDelete = this._todoListSupportsFeature(
+            TodoListEntityFeature.DELETE_TODO_ITEM
+          );
           const showReorder =
             item.status !== TodoItemStatus.Completed && this._reordering;
           const due = this._getDueDate(item);
@@ -546,6 +739,16 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   private _todoListSupportsFeature(feature: number): boolean {
     const entityStateObj = this.hass!.states[this._entityId!];
     return entityStateObj && supportsFeature(entityStateObj, feature);
+  }
+
+  private _todoListSupportsSorting(sort: TodoSortMode): boolean {
+    return (
+      sort === TodoSortMode.NONE ||
+      sort === TodoSortMode.ALPHA_ASC ||
+      sort === TodoSortMode.ALPHA_DESC ||
+      sort === TodoSortMode.DUEDATE_ASC ||
+      sort === TodoSortMode.DUEDATE_DESC
+    );
   }
 
   private async _subscribeItems(): Promise<void> {
@@ -686,12 +889,31 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     }
   }
 
-  private _deleteItem(ev): void {
-    const item = this._getItem(ev.target.itemId);
-    if (!item) {
-      return;
+  // private _deleteItem(ev): void {
+  //   const item = this._getItem(ev.target.itemId);
+  //   if (!item) {
+  //     return;
+  //   }
+  //   deleteItems(this.hass!, this._entityId!, [item.uid]);
+  // }
+  private async _deleteItem(ev): Promise<void> {
+    ev.stopPropagation();
+
+    const uid = (ev.target as any).itemId as string;
+    const item = this._getItem(uid);
+    if (!item) return;
+
+    const prev = this._items ?? [];
+    this._items = prev.filter((i) => i.uid !== uid);
+    this.requestUpdate();
+
+    try {
+      await deleteItems(this.hass!, this._entityId!, [uid]);
+    } catch (err) {
+      this._items = prev;
+      this.requestUpdate();
+      alert(this.hass?.localize("ui.common.error") ?? String(err));
     }
-    deleteItems(this.hass!, this._entityId!, [item.uid]);
   }
 
   private _addKeyPress(ev): void {
@@ -705,6 +927,22 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       case 0:
         this._toggleReorder();
         break;
+      case 1:
+        this._toggleAlphabetical();
+        this._toggleSorting(
+          this._alph_ascending
+            ? TodoSortMode.ALPHA_ASC
+            : TodoSortMode.ALPHA_DESC
+        );
+        break;
+      case 2:
+        this._toggleDueDate();
+        this._toggleSorting(
+          this._date_ascending
+            ? TodoSortMode.DUEDATE_ASC
+            : TodoSortMode.DUEDATE_DESC
+        );
+        break;
     }
   }
 
@@ -712,9 +950,43 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     this._reordering = !this._reordering;
   }
 
+  private _toggleAlphabetical() {
+    this._alph_ascending = !this._alph_ascending;
+  }
+
+  private _toggleDueDate() {
+    this._date_ascending = !this._date_ascending;
+  }
+
+  private _toggleSorting(sortMode: TodoSortMode) {
+    if (this._reordering) {
+      this._reordering = false;
+    }
+    if (!this._config) {
+      return;
+    }
+
+    if (this._entityId) {
+      this._perListSort.set(this._entityId, sortMode);
+      try {
+        localStorage.setItem(`todo-sort:${this._entityId}`, String(sortMode));
+      } catch {
+        // ignore localStorage errors
+      }
+    }
+
+    this._config = { ...this._config, display_order: sortMode };
+
+    this.requestUpdate();
+  }
+
   private async _itemMoved(ev: CustomEvent) {
     ev.stopPropagation();
     const { oldIndex, newIndex } = ev.detail;
+
+    if (this._config) {
+      this._config.display_order = TodoSortMode.NONE;
+    }
     this._moveItem(oldIndex, newIndex);
   }
 
