@@ -632,10 +632,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
   }
 
   private _getFilteredItems(tag: string, items: TodoItem[]) {
-    const uids = Array.from(this._getUidsFromTag(tag).values());
+    const uids = this._getUidsFromTag(tag);
     const filteredItems: TodoItem[] = [];
     for (const item of items) {
-      if (uids.includes(item.uid)) {
+      if (uids.has(item.uid)) {
         filteredItems.push(item);
       }
     }
