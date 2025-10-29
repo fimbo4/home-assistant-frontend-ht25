@@ -1,4 +1,5 @@
 # Home Assistant Frontend
+hello 
 
 This is the repository for the official [Home Assistant](https://home-assistant.io) frontend.
 
