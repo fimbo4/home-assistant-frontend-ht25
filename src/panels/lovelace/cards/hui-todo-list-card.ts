@@ -100,10 +100,8 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
 
   @state() private _date_ascending = false;
 
-  private _perListSort: Map<string, TodoSortMode | undefined> = new Map<
-    string,
-    TodoSortMode | undefined
-  >();
+  private readonly _perListSort: Map<string, TodoSortMode | undefined> =
+    new Map<string, TodoSortMode | undefined>();
 
   private _unsubItems?: Promise<UnsubscribeFunc>;
 
@@ -255,27 +253,31 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
         }
       }
 
-      if (this._entityId) {
-        let savedSort = this._perListSort.get(this._entityId);
-        if (savedSort === undefined) {
-          try {
-            const raw = localStorage.getItem(`todo-sort:${this._entityId}`);
-            if (raw) {
-              savedSort = raw as unknown as TodoSortMode;
-              this._perListSort.set(this._entityId, savedSort);
-            }
-          } catch {
-            // ignore localStorage errors
-          }
-        }
-
-        if (savedSort !== undefined && this._config) {
-          this._config = { ...this._config, display_order: savedSort };
-        }
-      }
+      this._updateSorting();
 
       this._items = undefined;
       this._subscribeItems();
+    }
+  }
+
+  private _updateSorting() {
+    if (this._entityId) {
+      let savedSort = this._perListSort.get(this._entityId);
+      if (savedSort === undefined) {
+        try {
+          const raw = localStorage.getItem(`todo-sort:${this._entityId}`);
+          if (raw) {
+            savedSort = raw as unknown as TodoSortMode;
+            this._perListSort.set(this._entityId, savedSort);
+          }
+        } catch {
+          // ignore localStorage errors
+        }
+      }
+
+      if (savedSort !== undefined && this._config) {
+        this._config = { ...this._config, display_order: savedSort };
+      }
     }
   }
 
@@ -555,31 +557,31 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
       : undefined;
   }
 
-  private tags = new Map<string, any>();
+  private readonly _tags = new Map<string, any>();
 
   private _generateTags(items: TodoItem[]) {
-    this.tags.clear();
+    this._tags.clear();
     for (const item of items) {
       const tags = item.description?.match(/#[^\s]+/g) ?? [];
-      this.tags.set(item.uid, tags);
+      this._tags.set(item.uid, tags);
     }
   }
 
   private _getUniqueTags() {
     const uniqueTags = new Set();
-    this.tags.forEach((tagArray) => {
+    for (const tagArray of this._tags.values()) {
       if (tagArray != null) {
-        tagArray.forEach((tag) => {
+        for (const tag of tagArray) {
           uniqueTags.add(tag);
-        });
+        }
       }
-    });
+    }
     return uniqueTags;
   }
 
   private _getUidsFromTag(tag: string) {
     const uids = new Set();
-    for (const [uid, tagArray] of this.tags.entries()) {
+    for (const [uid, tagArray] of this._tags.entries()) {
       if (Array.isArray(tagArray) && tagArray.includes(tag)) {
         uids.add(uid);
       }
@@ -633,7 +635,7 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     const uids = Array.from(this._getUidsFromTag(tag).values());
     const filteredItems: TodoItem[] = [];
     for (const item of items) {
-      if (uids.indexOf(item.uid) !== -1) {
+      if (uids.includes(item.uid)) {
         filteredItems.push(item);
       }
     }
@@ -889,17 +891,10 @@ export class HuiTodoListCard extends LitElement implements LovelaceCard {
     }
   }
 
-  // private _deleteItem(ev): void {
-  //   const item = this._getItem(ev.target.itemId);
-  //   if (!item) {
-  //     return;
-  //   }
-  //   deleteItems(this.hass!, this._entityId!, [item.uid]);
-  // }
   private async _deleteItem(ev): Promise<void> {
     ev.stopPropagation();
 
-    const uid = (ev.target as any).itemId as string;
+    const uid = ev.target.itemId as string;
     const item = this._getItem(uid);
     if (!item) return;
 
