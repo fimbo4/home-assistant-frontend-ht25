@@ -46,7 +46,7 @@ const makeHass = (supported: number): HassMock =>
   }) as HassMock;
 
 function createEl(): HuiTodoListCard {
-  const el = document.createElement("hui-todo-list-card") as HuiTodoListCard;
+  const el = document.createElement("hui-todo-list-card");
   document.body.appendChild(el);
   return el;
 }

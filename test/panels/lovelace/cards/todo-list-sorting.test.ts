@@ -23,7 +23,7 @@ describe("hui-todo-list-card basic behavior", () => {
 
     // Mock localStorage
     const store: Record<string, string> = {};
-    global.localStorage = {
+    globalThis.localStorage = {
       getItem: (k: string) => (k in store ? store[k] : null),
       setItem: (k: string, v: string) => {
         store[k] = v;
@@ -32,7 +32,9 @@ describe("hui-todo-list-card basic behavior", () => {
         delete store[k];
       },
       clear: () => {
-        Object.keys(store).forEach((k) => delete store[k]);
+        for (const k of Object.keys(store)) {
+          delete store[k];
+        }
       },
     } as any;
   });

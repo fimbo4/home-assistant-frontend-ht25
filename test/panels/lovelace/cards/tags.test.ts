@@ -33,7 +33,7 @@ describe("hui-todo-list-card - tagging system", () => {
     // @ts-ignore
     todoCard._generateTags(items);
     // @ts-ignore
-    const result = todoCard.tags;
+    const result = todoCard._tags;
     const expectedResult = new Map([
       ["276f830c-af42-11f0-aa44-339830d72eaf", ["#tag1"]],
       ["6d51211e-af42-11f0-aa44-339830d72eaf", ["#tag2", "#tag4"]],

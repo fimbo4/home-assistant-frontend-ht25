@@ -14,7 +14,6 @@ export const enum TodoItemStatus {
   Completed = "completed",
 }
 
-// TODO: Use this instead of custom sorting through the backend
 export enum TodoSortMode {
   NONE = "none",
   ALPHA_ASC = "alpha_asc",
